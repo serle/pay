@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::Path;
 
 /// Generate a CSV dataset with the specified parameters
+#[allow(dead_code)]
 pub fn generate_csv_dataset(
     num_transactions: usize,
     num_clients: u16,
@@ -17,7 +18,7 @@ pub fn generate_csv_dataset(
 
     for i in 0..num_transactions {
         let client_id = ((i % num_clients as usize) + 1) as u16;
-        let rand_val = (i as f64 / num_transactions as f64);
+        let rand_val = i as f64 / num_transactions as f64;
 
         if rand_val < deposit_ratio {
             // Deposit
@@ -46,6 +47,7 @@ pub fn generate_csv_dataset(
 }
 
 /// Generate CSV dataset and write to file
+#[allow(dead_code)]
 pub fn generate_csv_file<P: AsRef<Path>>(
     path: P,
     num_transactions: usize,
@@ -67,6 +69,7 @@ pub fn generate_csv_file<P: AsRef<Path>>(
 }
 
 /// Create standard fixture datasets
+#[allow(dead_code)]
 pub fn create_standard_fixtures() -> std::io::Result<()> {
     // Small dataset: 1K transactions, 100 clients, balanced workload
     generate_csv_file(
@@ -122,6 +125,7 @@ pub fn create_standard_fixtures() -> std::io::Result<()> {
 }
 
 /// Setup helper for creating a processor with both account manager and transaction store
+#[allow(dead_code)]
 pub fn setup_processor() -> TransactionProcessor<FixedPoint, ConcurrentAccountManager<FixedPoint>, ConcurrentTransactionStore<FixedPoint>> {
     let account_manager = ConcurrentAccountManager::<FixedPoint>::new();
     let transaction_store = ConcurrentTransactionStore::<FixedPoint>::new();
@@ -129,6 +133,7 @@ pub fn setup_processor() -> TransactionProcessor<FixedPoint, ConcurrentAccountMa
 }
 
 /// Create a batch of deposit transactions for testing
+#[allow(dead_code)]
 pub fn create_deposit_batch(start_tx_id: u32, count: usize, client_id: u16) -> Vec<Transaction<FixedPoint>> {
     (0..count)
         .map(|i| Transaction::Deposit {
@@ -140,6 +145,7 @@ pub fn create_deposit_batch(start_tx_id: u32, count: usize, client_id: u16) -> V
 }
 
 /// Create a batch of transactions with mixed types
+#[allow(dead_code)]
 pub fn create_mixed_batch(
     start_tx_id: u32,
     count: usize,
