@@ -1,0 +1,13 @@
+/target
+
+# Exclude coding challenge brief (not for publication)
+brief.txt
+
+# Hotpath profiling outputs
+hotpath/output/*.txt
+hotpath/output/*.svg
+hotpath/output/*.perf
+hotpath/output/*.data
+
+# Benchmark outputs
+benches/output/*
