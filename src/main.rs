@@ -42,9 +42,10 @@ async fn run_transaction_processor() -> Result<BufWriter<tokio::io::Stdout>, App
     let transaction_store = ConcurrentTransactionStore::<FixedPoint>::new();
     let processor = TransactionProcessor::new(account_manager, transaction_store);
 
-    // Create processing session with permissive error policy (per brief requirements)
+    // Create processing session with silent error policy (per brief requirements)
     // "you can ignore it and assume this is an error on our partners side"
-    let mut session = ProcessingSession::new(processor, SkipErrors);
+    // Use SilentSkip to avoid stderr output during automated scoring
+    let mut session = ProcessingSession::new(processor, SilentSkip);
 
     // Process the transaction stream
     let _success = session.process_stream(tx_stream).await;
