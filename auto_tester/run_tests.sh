@@ -117,14 +117,14 @@ if [ $FAILED_TESTS -gt 0 ]; then
     echo -e "  ${RED}Failed: $FAILED_TESTS${NC}"
     echo ""
     echo -e "${RED}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${RED}║  TESTS FAILED - Fix issues before submission              ║${NC}"
+    echo -e "${RED}║  TESTS FAILED                                             ║${NC}"
     echo -e "${RED}╚════════════════════════════════════════════════════════════╝${NC}"
     exit 1
 else
     echo -e "  ${GREEN}Failed: 0${NC}"
     echo ""
     echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║  ALL TESTS PASSED - Ready for submission! 🎉              ║${NC}"
+    echo -e "${GREEN}║  ALL TESTS PASSED 🎉                                      ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
     exit 0
 fi
