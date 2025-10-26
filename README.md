@@ -54,6 +54,32 @@ cargo run -- tests/fixtures/disputes.csv
 cargo run -- tests/fixtures/errors.csv
 ```
 
+## Automated Testing
+
+The project includes a comprehensive automated test suite that simulates the actual automated scoring environment:
+
+```bash
+# Run all 14 automated test scenarios
+./auto_tester/run_tests.sh
+```
+
+**Test Coverage:**
+- ✅ 14 test scenarios covering all brief requirements
+- ✅ Basic deposits/withdrawals, dispute workflows, error handling
+- ✅ Multiple clients, decimal precision, locked accounts
+- ✅ Edge cases: empty CSV, whitespace, large amounts, client mismatches
+- ✅ Row-order-agnostic comparison (per brief specification)
+- ✅ Clear pass/fail reporting with exit codes
+
+**Output when all tests pass:**
+```
+╔════════════════════════════════════════════════════════════╗
+║  ALL TESTS PASSED - Ready for submission! 🎉              ║
+╚════════════════════════════════════════════════════════════╝
+```
+
+See [auto_tester/README.md](auto_tester/README.md) for detailed documentation.
+
 ## Input Format
 
 CSV with columns: `type`, `client`, `tx`, `amount`
