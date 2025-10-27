@@ -1,8 +1,8 @@
 use std::env;
 use std::sync::Arc;
-use tokio::io::BufWriter;
 
 use pay::prelude::*;
+use tokio::io::AsyncWriteExt;
 
 #[tokio::main]
 async fn main() {
@@ -14,7 +14,9 @@ async fn main() {
 }
 
 /// Main application logic - processes transactions and writes snapshot
-async fn run_transaction_processor() -> Result<BufWriter<tokio::io::Stdout>, AppError> {
+async fn run_transaction_processor(
+    mut writer: tokio::io::BufWriter<tokio::io::Stdout>,
+) -> Result<(), AppError> {
     // Parse command line arguments
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
@@ -44,8 +46,8 @@ async fn run_transaction_processor() -> Result<BufWriter<tokio::io::Stdout>, App
     // Note: We continue regardless of success/failure per brief's error handling guidance
 
     // Write snapshot to stdout
-    let mut writer = BufWriter::new(tokio::io::stdout());
     write_snapshot(&account_manager, &mut writer).await?;
+    writer.flush().await?;
 
-    Ok(writer)
+    Ok(())
 }

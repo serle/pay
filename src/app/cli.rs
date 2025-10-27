@@ -1,6 +1,4 @@
 use std::future::Future;
-use std::io::Write;
-use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 use super::error::AppError;
 
@@ -31,26 +29,27 @@ impl CliApp {
 
     /// Run the CLI application with proper signal handling and resource cleanup
     ///
+    /// Creates a buffered stdout writer and passes it to the main function.
+    /// Handles flushing and exit codes automatically.
+    ///
     /// This function never returns - it calls std::process::exit with the appropriate code
-    pub async fn run<F, Fut, R>(self, main_fn: F) -> !
+    pub async fn run<F, Fut>(self, main_fn: F) -> !
     where
-        F: FnOnce() -> Fut,
-        Fut: Future<Output = Result<R, AppError>>,
-        R: SnapshotWriter,
+        F: FnOnce(tokio::io::BufWriter<tokio::io::Stdout>) -> Fut,
+        Fut: Future<Output = Result<(), AppError>>,
     {
+        // Create buffered stdout writer
+        let writer = tokio::io::BufWriter::new(tokio::io::stdout());
+
         // Setup signal handling
         let signal_fut = self.wait_for_signal();
 
         // Race main application logic against signal reception
         tokio::select! {
-            result = main_fn() => {
+            result = main_fn(writer) => {
                 match result {
-                    Ok(mut writer) => {
-                        // Flush output before exit
-                        if let Err(e) = writer.flush_async().await {
-                            eprintln!("Error flushing output: {}", e);
-                            std::process::exit(1);
-                        }
+                    Ok(()) => {
+                        // Writer is already flushed by main_fn
                         std::process::exit(0);
                     }
                     Err(e) => {
@@ -62,8 +61,6 @@ impl CliApp {
             signal_code = signal_fut => {
                 if self.write_partial_on_signal {
                     eprintln!("Interrupted, writing partial results...");
-                    // Note: In our case, snapshot is already written by the time we get here
-                    // since we process the stream completely before returning
                 }
                 std::process::exit(signal_code);
             }
@@ -110,40 +107,6 @@ impl CliApp {
     }
 }
 
-/// Trait for types that can write snapshots and be flushed
-/// This allows the CliApp to work with any output type
-#[async_trait::async_trait]
-pub trait SnapshotWriter {
-    async fn flush_async(&mut self) -> Result<(), AppError>;
-}
-
-/// Implement for BufWriter wrapping stdout
-#[async_trait::async_trait]
-impl<W: Write + Send> SnapshotWriter for std::io::BufWriter<W> {
-    async fn flush_async(&mut self) -> Result<(), AppError> {
-        self.flush()?;
-        Ok(())
-    }
-}
-
-/// Implement for tokio BufWriter
-#[async_trait::async_trait]
-impl<W: AsyncWrite + Unpin + Send> SnapshotWriter for tokio::io::BufWriter<W> {
-    async fn flush_async(&mut self) -> Result<(), AppError> {
-        self.flush().await?;
-        Ok(())
-    }
-}
-
-/// Implement for Vec<u8> (useful for testing)
-#[async_trait::async_trait]
-impl SnapshotWriter for Vec<u8> {
-    async fn flush_async(&mut self) -> Result<(), AppError> {
-        // Vec doesn't need flushing, but we implement the trait for testing
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,22 +122,5 @@ mod tests {
     fn cli_app_with_signal_snapshot() {
         let app = CliApp::new("test-app").with_signal_snapshot(true);
         assert!(app.write_partial_on_signal);
-    }
-
-    #[tokio::test]
-    async fn snapshot_writer_vec() {
-        let mut vec = Vec::new();
-        vec.extend_from_slice(b"test data");
-        assert!(vec.flush_async().await.is_ok());
-        assert_eq!(vec.as_slice(), b"test data");
-    }
-
-    #[tokio::test]
-    async fn snapshot_writer_bufwriter() {
-        let buffer = Vec::new();
-        let mut writer = std::io::BufWriter::new(buffer);
-        use std::io::Write;
-        writer.write_all(b"test data").unwrap();
-        assert!(writer.flush_async().await.is_ok());
     }
 }
