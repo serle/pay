@@ -54,6 +54,11 @@ name = "runtime_comparison"
 path = "benches/src/runtime_comparison.rs"
 harness = false
 
+[[bench]]
+name = "stream_topologies"
+path = "benches/src/stream_topologies.rs"
+harness = false
+
 # Hotpath profiling binaries
 [[bin]]
 name = "hotpath_single_threaded"

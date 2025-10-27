@@ -120,6 +120,35 @@ impl<A: AmountType> ClientAccountManager<A> for ConcurrentAccountManager<A> {
     }
 }
 
+// Implement ClientAccountManager for Arc<ConcurrentAccountManager> to enable sharing
+// This allows multiple threads/tasks to share the same account manager
+#[async_trait]
+impl<A: AmountType> ClientAccountManager<A> for std::sync::Arc<ConcurrentAccountManager<A>> {
+    type Entry<'a>
+        = ConcurrentEntry<'a, A>
+    where
+        Self: 'a;
+
+    fn entry(&self, client_id: u16) -> Result<Self::Entry<'_>, StorageError> {
+        (**self).entry(client_id)
+    }
+
+    fn get(&self, client_id: u16) -> Result<Option<&ClientAccount<A>>, StorageError> {
+        (**self).get(client_id)
+    }
+
+    async fn snapshot<W>(&self, writer: W) -> Result<(), StorageError>
+    where
+        W: AsyncWrite + Unpin + Send,
+    {
+        (**self).snapshot(writer).await
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = &ClientAccount<A>> + Send + '_> {
+        (**self).iter()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -305,33 +334,4 @@ mod tests {
 
     // Note: iter() test omitted as DashMap doesn't support returning borrowed references
     // The snapshot() method demonstrates correct iteration
-}
-
-// Implement ClientAccountManager for Arc<ConcurrentAccountManager> to enable sharing
-// This allows multiple threads/tasks to share the same account manager
-#[async_trait]
-impl<A: AmountType> ClientAccountManager<A> for std::sync::Arc<ConcurrentAccountManager<A>> {
-    type Entry<'a>
-        = ConcurrentEntry<'a, A>
-    where
-        Self: 'a;
-
-    fn entry(&self, client_id: u16) -> Result<Self::Entry<'_>, StorageError> {
-        (**self).entry(client_id)
-    }
-
-    fn get(&self, client_id: u16) -> Result<Option<&ClientAccount<A>>, StorageError> {
-        (**self).get(client_id)
-    }
-
-    async fn snapshot<W>(&self, writer: W) -> Result<(), StorageError>
-    where
-        W: AsyncWrite + Unpin + Send,
-    {
-        (**self).snapshot(writer).await
-    }
-
-    fn iter(&self) -> Box<dyn Iterator<Item = &ClientAccount<A>> + Send + '_> {
-        (**self).iter()
-    }
 }

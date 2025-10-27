@@ -14,7 +14,7 @@ fn bench_account_entry_cold(c: &mut Criterion) {
             &num_accounts,
             |b, &num_accounts| {
                 b.iter_batched(
-                    || ConcurrentAccountManager::<FixedPoint>::new(),
+                    ConcurrentAccountManager::<FixedPoint>::new,
                     |manager| {
                         // First access to each account (cold cache)
                         for i in 0..num_accounts {
@@ -75,17 +75,16 @@ fn bench_account_update(c: &mut Criterion) {
             &num_updates,
             |b, &num_updates| {
                 b.iter_batched(
-                    || ConcurrentAccountManager::<FixedPoint>::new(),
+                    ConcurrentAccountManager::<FixedPoint>::new,
                     |manager| {
                         for _ in 0..num_updates {
                             let mut entry = manager.entry(1).unwrap();
-                            black_box(
-                                entry
-                                    .try_update(|acc| {
-                                        operations::apply_deposit(acc, FixedPoint::from_raw(10_000))
-                                    })
-                                    .unwrap(),
-                            );
+                            entry
+                                .try_update(|acc| {
+                                    operations::apply_deposit(acc, FixedPoint::from_raw(10_000))
+                                })
+                                .unwrap();
+                            black_box(());
                         }
                     },
                     BatchSize::SmallInput,
@@ -146,14 +145,15 @@ fn bench_transaction_store_insert(c: &mut Criterion) {
             &num_transactions,
             |b, &num_transactions| {
                 b.iter_batched(
-                    || ConcurrentTransactionStore::<FixedPoint>::new(),
+                    ConcurrentTransactionStore::<FixedPoint>::new,
                     |mut store| {
                         for i in 0..num_transactions {
                             let record = TransactionRecord {
                                 client_id: (i % 1000) as u16,
                                 amount: FixedPoint::from_raw(10_000),
                             };
-                            black_box(store.insert(i as u32, record));
+                            store.insert(i as u32, record);
+                            black_box(());
                         }
                     },
                     BatchSize::SmallInput,

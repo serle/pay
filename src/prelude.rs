@@ -20,7 +20,10 @@ pub use crate::engine::{EngineError, TransactionProcessor};
 pub use crate::io::{CsvTransactionStream, IoError, RawTransactionRecord, write_snapshot};
 
 // Streaming types
-pub use crate::streaming::{AbortOnError, ErrorPolicy, ProcessingSession, SilentSkip, SkipErrors};
+pub use crate::streaming::{
+    AbortOnError, ErrorPolicy, SilentSkip, SkipErrors,
+    StreamProcessor, StreamCombinator, ShardAssignment,
+};
 
 // App types
 pub use crate::app::{AppError, CliApp, SnapshotWriter};

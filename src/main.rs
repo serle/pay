@@ -1,4 +1,5 @@
 use std::env;
+use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::BufWriter;
 use tokio_util::compat::TokioAsyncReadCompatExt;
@@ -35,27 +36,31 @@ async fn run_transaction_processor() -> Result<BufWriter<tokio::io::Stdout>, App
     let compat_file = file.compat();
 
     // Create CSV transaction stream
+    // This is a simple single-stream topology (most common case)
+    // For processing multiple streams, see:
+    //   - examples/sequential_topology.rs (chain multiple streams in order)
+    //   - examples/concurrent_topology.rs (merge multiple streams concurrently)
+    //   - examples/parallel_topology.rs (parallel processing with multiple shards)
     let tx_stream = CsvTransactionStream::<FixedPoint>::new(compat_file);
 
-    // Create storage and engine
-    let account_manager = ConcurrentAccountManager::<FixedPoint>::new();
-    let transaction_store = ConcurrentTransactionStore::<FixedPoint>::new();
-    let processor = TransactionProcessor::new(account_manager, transaction_store);
+    // Create shared storage (wrapped in Arc for StreamProcessor API)
+    let account_manager = Arc::new(ConcurrentAccountManager::<FixedPoint>::new());
+    let transaction_store = Arc::new(ConcurrentTransactionStore::<FixedPoint>::new());
 
-    // Create processing session with silent error policy (per brief requirements)
+    // Process stream with silent error policy (per brief requirements)
     // "you can ignore it and assume this is an error on our partners side"
     // Use SilentSkip to avoid stderr output during automated scoring
-    let mut session = ProcessingSession::new(processor, SilentSkip);
-
-    // Process the transaction stream
-    let _success = session.process_stream(tx_stream).await;
+    let _results = StreamProcessor::new(account_manager.clone(), transaction_store, SilentSkip)
+        .add_stream(tx_stream)
+        .process()
+        .await;
     // Note: We continue regardless of success/failure per brief's error handling guidance
 
     // Write snapshot to stdout
     let stdout = tokio::io::stdout();
     let mut writer = BufWriter::new(stdout);
 
-    write_snapshot(session.account_manager(), &mut writer).await?;
+    write_snapshot(&*account_manager, &mut writer).await?;
 
     // Return writer so CliApp can flush it before exit
     Ok(writer)

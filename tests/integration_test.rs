@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use futures::io::Cursor;
 use pay::prelude::*;
 
@@ -7,20 +8,19 @@ async fn process_csv(input: &str) -> String {
     let reader = Cursor::new(input.to_string().into_bytes());
     let tx_stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
-    // Create storage and engine
-    let account_manager = ConcurrentAccountManager::<FixedPoint>::new();
-    let store = ConcurrentTransactionStore::new();
-    let processor = TransactionProcessor::new(account_manager, store);
-
-    // Create processing session with permissive error policy
-    let mut session = ProcessingSession::new(processor, SilentSkip);
+    // Create shared storage
+    let account_manager = Arc::new(ConcurrentAccountManager::<FixedPoint>::new());
+    let store = Arc::new(ConcurrentTransactionStore::new());
 
     // Process transactions
-    session.process_stream(tx_stream).await;
+    StreamProcessor::new(account_manager.clone(), store, SilentSkip)
+        .add_stream(tx_stream)
+        .process()
+        .await;
 
     // Write snapshot to buffer
     let mut output = Vec::new();
-    write_snapshot(session.account_manager(), &mut output)
+    write_snapshot(&*account_manager, &mut output)
         .await
         .expect("Failed to write snapshot");
 

@@ -13,6 +13,7 @@ pub trait ErrorPolicy: Send + Sync {
 }
 
 /// Skip errors and continue processing (log to stderr)
+#[derive(Clone)]
 pub struct SkipErrors;
 
 impl ErrorPolicy for SkipErrors {
@@ -28,6 +29,7 @@ impl ErrorPolicy for SkipErrors {
 }
 
 /// Abort on first error
+#[derive(Clone)]
 pub struct AbortOnError;
 
 impl ErrorPolicy for AbortOnError {
@@ -43,6 +45,7 @@ impl ErrorPolicy for AbortOnError {
 }
 
 /// Silent error policy - skip errors without logging
+#[derive(Clone)]
 pub struct SilentSkip;
 
 impl ErrorPolicy for SilentSkip {

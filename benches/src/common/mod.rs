@@ -35,10 +35,9 @@ pub fn generate_csv_dataset(
             }
         } else if rand_val < deposit_ratio + withdrawal_ratio + dispute_ratio {
             // Dispute (reference a previous transaction)
-            if let Some(&(dep_client, dep_tx)) = deposited_txs.get(i % deposited_txs.len()) {
-                if dep_client == client_id {
-                    csv.push_str(&format!("dispute,{},{},\n", client_id, dep_tx));
-                }
+            if let Some(&(dep_client, dep_tx)) = deposited_txs.get(i % deposited_txs.len())
+                && dep_client == client_id {
+                csv.push_str(&format!("dispute,{},{},\n", client_id, dep_tx));
             }
         }
     }

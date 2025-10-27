@@ -38,6 +38,24 @@ impl<A: AmountType> Default for ConcurrentTransactionStore<A> {
     }
 }
 
+// Implement TransactionStoreManager for Arc<ConcurrentTransactionStore> to enable sharing
+// This allows multiple threads/tasks to share the same transaction store
+impl<A: AmountType> TransactionStoreManager<A> for std::sync::Arc<ConcurrentTransactionStore<A>> {
+    fn insert(&mut self, tx_id: u32, record: TransactionRecord<A>) {
+        // Arc provides interior mutability via DashMap, so we can insert through &self
+        // We just need to get a reference to the inner store
+        self.records.insert(tx_id, record);
+    }
+
+    fn get(&self, tx_id: u32) -> Option<TransactionRecord<A>> {
+        (**self).get(tx_id)
+    }
+
+    fn contains(&self, tx_id: u32) -> bool {
+        (**self).contains(tx_id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,23 +187,5 @@ mod tests {
 
         // Original record unchanged
         assert_eq!(store.get(1).unwrap().amount, FixedPoint::from_raw(1000));
-    }
-}
-
-// Implement TransactionStoreManager for Arc<ConcurrentTransactionStore> to enable sharing
-// This allows multiple threads/tasks to share the same transaction store
-impl<A: AmountType> TransactionStoreManager<A> for std::sync::Arc<ConcurrentTransactionStore<A>> {
-    fn insert(&mut self, tx_id: u32, record: TransactionRecord<A>) {
-        // Arc provides interior mutability via DashMap, so we can insert through &self
-        // We just need to get a reference to the inner store
-        self.records.insert(tx_id, record);
-    }
-
-    fn get(&self, tx_id: u32) -> Option<TransactionRecord<A>> {
-        (**self).get(tx_id)
-    }
-
-    fn contains(&self, tx_id: u32) -> bool {
-        (**self).contains(tx_id)
     }
 }
