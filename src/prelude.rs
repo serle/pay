@@ -26,4 +26,4 @@ pub use crate::streaming::{
 };
 
 // App types
-pub use crate::app::{AppError, CliApp};
+pub use crate::app::{AppError, CliApp, Writers};
