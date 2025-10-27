@@ -2,7 +2,6 @@ use std::env;
 use std::sync::Arc;
 
 use pay::prelude::*;
-use tokio::io::AsyncWriteExt;
 
 #[tokio::main]
 async fn main() {
@@ -45,9 +44,8 @@ async fn run_transaction_processor(
         .await;
     // Note: We continue regardless of success/failure per brief's error handling guidance
 
-    // Write snapshot to stdout
-    write_snapshot(&account_manager, &mut writer).await?;
-    writer.flush().await?;
+    // Write snapshot to stdout (snapshot() handles flushing)
+    account_manager.snapshot(&mut writer).await?;
 
     Ok(())
 }
