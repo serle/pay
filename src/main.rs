@@ -35,7 +35,7 @@ async fn run_transaction_processor() -> Result<BufWriter<tokio::io::Stdout>, App
     let compat_file = file.compat();
 
     // Create CSV transaction stream
-    let tx_stream = CsvTransactionStream::<_, FixedPoint>::new(compat_file);
+    let tx_stream = CsvTransactionStream::<FixedPoint>::new(compat_file);
 
     // Create storage and engine
     let account_manager = ConcurrentAccountManager::<FixedPoint>::new();

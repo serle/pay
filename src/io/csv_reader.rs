@@ -1,9 +1,8 @@
-use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use csv_async::AsyncReaderBuilder;
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use futures::io::AsyncRead;
 
 use super::error::IoError;
@@ -11,54 +10,49 @@ use super::parse::RawTransactionRecord;
 use crate::domain::{AmountType, Transaction};
 
 /// Async stream of transactions from CSV input
-pub struct CsvTransactionStream<R, A>
+pub struct CsvTransactionStream<A>
 where
-    R: AsyncRead + Unpin + Send + 'static,
     A: AmountType + Unpin,
 {
-    records: csv_async::DeserializeRecordsIntoStream<'static, R, RawTransactionRecord>,
-    _phantom: PhantomData<A>,
+    inner: Pin<Box<dyn Stream<Item = Result<Transaction<A>, IoError>> + Send>>,
 }
 
-impl<R, A> CsvTransactionStream<R, A>
+impl<A> CsvTransactionStream<A>
 where
-    R: AsyncRead + Unpin + Send + 'static,
     A: AmountType + Unpin,
 {
     /// Create a new transaction stream from an async reader
-    pub fn new(reader: R) -> Self {
+    pub fn new<R>(reader: R) -> Self
+    where
+        R: AsyncRead + Unpin + Send + 'static,
+    {
         let csv_reader = AsyncReaderBuilder::new()
             .trim(csv_async::Trim::All)
             .flexible(true)
             .create_deserializer(reader);
 
-        let records = csv_reader.into_deserialize::<RawTransactionRecord>();
+        let stream = csv_reader
+            .into_deserialize::<RawTransactionRecord>()
+            .map(|result| {
+                result
+                    .map_err(IoError::from)
+                    .and_then(|raw| raw.parse::<A>())
+            });
 
         Self {
-            records,
-            _phantom: PhantomData,
+            inner: Box::pin(stream),
         }
     }
 }
 
-impl<R, A> Stream for CsvTransactionStream<R, A>
+impl<A> Stream for CsvTransactionStream<A>
 where
-    R: AsyncRead + Unpin + Send + 'static,
     A: AmountType + Unpin,
 {
     type Item = Result<Transaction<A>, IoError>;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.get_mut();
-        match Pin::new(&mut this.records).poll_next(cx) {
-            Poll::Ready(Some(Ok(raw_record))) => {
-                let result = raw_record.parse::<A>();
-                Poll::Ready(Some(result))
-            }
-            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(IoError::from(e)))),
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
-        }
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.inner.as_mut().poll_next(cx)
     }
 }
 
@@ -80,7 +74,7 @@ dispute,1,1,
 resolve,1,1,
 ";
         let reader = Cursor::new(csv_data.as_bytes());
-        let mut stream = CsvTransactionStream::<_, FixedPoint>::new(reader);
+        let mut stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
         // First transaction: deposit
         let tx1 = stream.next().await.unwrap().unwrap();
@@ -158,7 +152,7 @@ type,client,tx,amount
   deposit  ,  1  ,  1  ,  1.5000
 ";
         let reader = Cursor::new(csv_data.as_bytes());
-        let mut stream = CsvTransactionStream::<_, FixedPoint>::new(reader);
+        let mut stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
         let tx = stream.next().await.unwrap().unwrap();
         match tx {
@@ -182,7 +176,7 @@ type,client,tx,amount
 dispute,1,1,
 ";
         let reader = Cursor::new(csv_data.as_bytes());
-        let mut stream = CsvTransactionStream::<_, FixedPoint>::new(reader);
+        let mut stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
         let tx = stream.next().await.unwrap().unwrap();
         assert!(matches!(tx, Transaction::Dispute { .. }));
@@ -195,7 +189,7 @@ type,client,tx,amount
 invalid,1,1,1.0
 ";
         let reader = Cursor::new(csv_data.as_bytes());
-        let mut stream = CsvTransactionStream::<_, FixedPoint>::new(reader);
+        let mut stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
         let result = stream.next().await.unwrap();
         assert!(matches!(result, Err(IoError::InvalidTransactionType(_))));
@@ -208,7 +202,7 @@ type,client,tx,amount
 deposit,1,1,
 ";
         let reader = Cursor::new(csv_data.as_bytes());
-        let mut stream = CsvTransactionStream::<_, FixedPoint>::new(reader);
+        let mut stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
         let result = stream.next().await.unwrap();
         assert!(matches!(result, Err(IoError::MissingField(_))));
@@ -221,7 +215,7 @@ type,client,tx,amount
 deposit,1,1,not_a_number
 ";
         let reader = Cursor::new(csv_data.as_bytes());
-        let mut stream = CsvTransactionStream::<_, FixedPoint>::new(reader);
+        let mut stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
         let result = stream.next().await.unwrap();
         assert!(matches!(result, Err(IoError::InvalidAmount(_))));
@@ -233,7 +227,7 @@ deposit,1,1,not_a_number
 type,client,tx,amount
 ";
         let reader = Cursor::new(csv_data.as_bytes());
-        let mut stream = CsvTransactionStream::<_, FixedPoint>::new(reader);
+        let mut stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
         assert!(stream.next().await.is_none());
     }
@@ -249,7 +243,7 @@ resolve,1,1,
 chargeback,1,1,
 ";
         let reader = Cursor::new(csv_data.as_bytes());
-        let stream = CsvTransactionStream::<_, FixedPoint>::new(reader);
+        let stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
         // Collect all transactions
         let transactions: Vec<_> = stream.collect().await;

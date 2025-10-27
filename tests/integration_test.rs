@@ -5,7 +5,7 @@ use pay::prelude::*;
 async fn process_csv(input: &str) -> String {
     // Create CSV stream with owned data
     let reader = Cursor::new(input.to_string().into_bytes());
-    let tx_stream = CsvTransactionStream::<_, FixedPoint>::new(reader);
+    let tx_stream = CsvTransactionStream::<FixedPoint>::new(reader);
 
     // Create storage and engine
     let account_manager = ConcurrentAccountManager::<FixedPoint>::new();
