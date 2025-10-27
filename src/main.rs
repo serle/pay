@@ -28,9 +28,7 @@ async fn run_transaction_processor() -> Result<BufWriter<tokio::io::Stdout>, App
     // For processing multiple streams, see:
     //   - examples/sequential_topology.rs (chain multiple streams in order)
     //   - examples/concurrent_topology.rs (merge multiple streams concurrently)
-    let tx_stream = CsvTransactionStream::<FixedPoint>::from_file(&args[1])
-        .await
-        .map_err(|_| AppError::FileNotFound(args[1].clone()))?;
+    let tx_stream = CsvTransactionStream::<FixedPoint>::from_file(&args[1]).await?;
 
     // Create shared storage (wrapped in Arc for StreamProcessor API)
     let account_manager = Arc::new(ConcurrentAccountManager::<FixedPoint>::new());
