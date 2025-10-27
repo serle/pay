@@ -20,8 +20,6 @@
 
 use std::env;
 use std::sync::Arc;
-use tokio::fs::File;
-use tokio_util::compat::TokioAsyncReadCompatExt;
 
 use pay::prelude::*;
 
@@ -57,16 +55,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut processor = StreamProcessor::new(account_manager.clone(), transaction_store, SkipErrors);
 
     for input_path in input_files {
-        // Open file
-        let file = File::open(input_path).await.map_err(|e| {
-            format!("Failed to open {}: {}", input_path, e)
-        })?;
-
-        // Convert tokio AsyncRead to futures AsyncRead
-        let compat_file = file.compat();
-
-        // Create CSV transaction stream
-        let csv_stream = CsvTransactionStream::<FixedPoint>::new(compat_file);
+        // Create CSV transaction stream from file
+        let csv_stream = CsvTransactionStream::<FixedPoint>::from_file(input_path)
+            .await
+            .map_err(|e| format!("Failed to open {}: {}", input_path, e))?;
 
         // Add to processor
         processor = processor.add_stream(csv_stream);
