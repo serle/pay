@@ -1,8 +1,6 @@
 use std::env;
 use std::sync::Arc;
-use tokio::fs::File;
 use tokio::io::BufWriter;
-use tokio_util::compat::TokioAsyncReadCompatExt;
 
 use pay::prelude::*;
 
@@ -25,23 +23,14 @@ async fn run_transaction_processor() -> Result<BufWriter<tokio::io::Stdout>, App
         ));
     }
 
-    let input_path = &args[1];
-
-    // Open input file
-    let file = File::open(input_path)
-        .await
-        .map_err(|_| AppError::FileNotFound(input_path.clone()))?;
-
-    // Convert tokio AsyncRead to futures AsyncRead
-    let compat_file = file.compat();
-
-    // Create CSV transaction stream
+    // Create CSV transaction stream from file
     // This is a simple single-stream topology (most common case)
     // For processing multiple streams, see:
     //   - examples/sequential_topology.rs (chain multiple streams in order)
     //   - examples/concurrent_topology.rs (merge multiple streams concurrently)
-    //   - examples/parallel_topology.rs (parallel processing with multiple shards)
-    let tx_stream = CsvTransactionStream::<FixedPoint>::new(compat_file);
+    let tx_stream = CsvTransactionStream::<FixedPoint>::from_file(&args[1])
+        .await
+        .map_err(|_| AppError::FileNotFound(args[1].clone()))?;
 
     // Create shared storage (wrapped in Arc for StreamProcessor API)
     let account_manager = Arc::new(ConcurrentAccountManager::<FixedPoint>::new());
@@ -57,11 +46,8 @@ async fn run_transaction_processor() -> Result<BufWriter<tokio::io::Stdout>, App
     // Note: We continue regardless of success/failure per brief's error handling guidance
 
     // Write snapshot to stdout
-    let stdout = tokio::io::stdout();
-    let mut writer = BufWriter::new(stdout);
+    let mut writer = BufWriter::new(tokio::io::stdout());
+    write_snapshot(&account_manager, &mut writer).await?;
 
-    write_snapshot(&*account_manager, &mut writer).await?;
-
-    // Return writer so CliApp can flush it before exit
     Ok(writer)
 }

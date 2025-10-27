@@ -1,9 +1,12 @@
+use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use csv_async::AsyncReaderBuilder;
 use futures::{Stream, StreamExt};
 use futures::io::AsyncRead;
+use tokio::fs::File;
+use tokio_util::compat::TokioAsyncReadCompatExt;
 
 use super::error::IoError;
 use super::parse::RawTransactionRecord;
@@ -42,6 +45,20 @@ where
         Self {
             inner: Box::pin(stream),
         }
+    }
+
+    /// Create a new transaction stream from a file path
+    ///
+    /// Opens the file asynchronously and creates a CSV stream.
+    /// This is a convenience method that handles tokio-futures compatibility internally.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let stream = CsvTransactionStream::<FixedPoint>::from_file("transactions.csv").await?;
+    /// ```
+    pub async fn from_file(path: impl AsRef<Path>) -> Result<Self, IoError> {
+        let file = File::open(path.as_ref()).await?;
+        Ok(Self::new(file.compat()))
     }
 }
 
