@@ -113,27 +113,27 @@ async fn process_stream(
             }
             6..=7 => {
                 // Dispute (20%) - creates disputed transactions
-                if let Some(&(dep_client, dep_tx)) = deposited_txs.get(i % deposited_txs.len()) {
-                    if dep_client == client_id {
-                        process_dispute(&mut processor, dep_client, dep_tx);
-                        disputed_txs.push((dep_client, dep_tx));
-                    }
+                if let Some(&(dep_client, dep_tx)) = deposited_txs.get(i % deposited_txs.len())
+                    && dep_client == client_id
+                {
+                    process_dispute(&mut processor, dep_client, dep_tx);
+                    disputed_txs.push((dep_client, dep_tx));
                 }
             }
             8 => {
                 // Resolve (10%) - completes half of disputed transactions
-                if !disputed_txs.is_empty() {
-                    if let Some(&(disp_client, disp_tx)) = disputed_txs.get(i % disputed_txs.len()) {
-                        process_resolve(&mut processor, disp_client, disp_tx);
-                    }
+                if !disputed_txs.is_empty()
+                    && let Some(&(disp_client, disp_tx)) = disputed_txs.get(i % disputed_txs.len())
+                {
+                    process_resolve(&mut processor, disp_client, disp_tx);
                 }
             }
             9 => {
                 // Chargeback (10%) - completes other half, locks accounts
-                if !disputed_txs.is_empty() {
-                    if let Some(&(disp_client, disp_tx)) = disputed_txs.get(i % disputed_txs.len()) {
-                        process_chargeback(&mut processor, disp_client, disp_tx);
-                    }
+                if !disputed_txs.is_empty()
+                    && let Some(&(disp_client, disp_tx)) = disputed_txs.get(i % disputed_txs.len())
+                {
+                    process_chargeback(&mut processor, disp_client, disp_tx);
                 }
             }
             _ => unreachable!(),

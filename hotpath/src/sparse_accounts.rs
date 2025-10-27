@@ -126,10 +126,10 @@ async fn process_stream(
             }
             9 => {
                 // Dispute (10%)
-                if let Some(&(dep_client, dep_tx)) = deposited_txs.get(i % deposited_txs.len()) {
-                    if dep_client == client_id {
-                        process_dispute(&mut processor, client_id, dep_tx);
-                    }
+                if let Some(&(dep_client, dep_tx)) = deposited_txs.get(i % deposited_txs.len())
+                    && dep_client == client_id
+                {
+                    process_dispute(&mut processor, client_id, dep_tx);
                 }
             }
             _ => unreachable!(),
